@@ -1,0 +1,682 @@
+
+<title>Rampart — System Architecture</title>
+<style>
+:root {
+  --ground:   #080c18;
+  --surface:  #0f1629;
+  --surface2: #162040;
+  --border:   #1e2d4a;
+  --text:     #e2e8f0;
+  --muted:    #4a6080;
+  --accent:   #818cf8;
+  --amber:    #f59e0b;
+  --red:      #f43f5e;
+  --green:    #10b981;
+  --mono: 'Cascadia Code','Fira Code','JetBrains Mono','Courier New',monospace;
+  --sans: 'Segoe UI',system-ui,-apple-system,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+body {
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 44px 28px 56px;
+}
+
+.wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* ── SCAN BEAM ─────────────────────────────────────── */
+.beam {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 20;
+  border-radius: 4px;
+}
+.beam::after {
+  content: '';
+  position: absolute;
+  left: -5%;
+  right: -5%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent 0%, rgba(129,140,248,0.15) 20%, rgba(129,140,248,0.7) 50%, rgba(129,140,248,0.15) 80%, transparent 100%);
+  box-shadow: 0 0 18px 4px rgba(129,140,248,0.25);
+  animation: scan 8s cubic-bezier(.4,0,.6,1) infinite;
+  opacity: 0;
+}
+@keyframes scan {
+  0%   { top: -4px; opacity: 0 }
+  4%   { opacity: 1 }
+  96%  { opacity: 1 }
+  100% { top: 100%; opacity: 0 }
+}
+@media (prefers-reduced-motion: reduce) { .beam::after { display: none } }
+
+/* ── HEADER ────────────────────────────────────────── */
+.hdr {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.logo {
+  font-family: var(--mono);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  color: var(--accent);
+  line-height: 1;
+  margin-bottom: 5px;
+}
+.logo-sub {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.hdr-stats {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.stat {
+  text-align: right;
+  font-family: var(--mono);
+}
+.stat-n {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+.stat-l {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+.live-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  margin-right: 5px;
+  animation: blink 2s ease-in-out infinite;
+  vertical-align: middle;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ── LAYER LABEL ───────────────────────────────────── */
+.lbl {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+/* ── INPUTS ────────────────────────────────────────── */
+.inputs {
+  display: grid;
+  grid-template-columns: repeat(5,1fr);
+  gap: 8px;
+  margin-bottom: 0;
+}
+.inp {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--accent);
+  border-radius: 4px;
+  padding: 11px 13px;
+  text-align: center;
+  transition: border-color .2s, box-shadow .2s;
+}
+.inp:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(129,140,248,.15);
+}
+.inp-name {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.inp-sub {
+  font-size: 9.5px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+/* ── ARROWS ────────────────────────────────────────── */
+.arr {
+  display: flex;
+  justify-content: center;
+  height: 28px;
+  align-items: center;
+}
+.arr-line {
+  width: 1px;
+  height: 20px;
+  background: rgba(129,140,248,.35);
+  position: relative;
+}
+.arr-line::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid rgba(129,140,248,.4);
+}
+
+/* ── API BOX ───────────────────────────────────────── */
+.api {
+  background: var(--surface);
+  border: 1px solid rgba(129,140,248,.45);
+  border-radius: 6px;
+  padding: 15px 18px;
+  box-shadow: 0 0 0 1px rgba(129,140,248,.06), inset 0 1px 0 rgba(129,140,248,.08);
+}
+.api-hdr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 11px;
+}
+.api-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--accent);
+}
+.api-badge {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 2px 7px;
+}
+.endpoints {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 5px;
+}
+.ep {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 5px 9px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ep-post { color: var(--accent); font-weight: 700; font-size: 9px; }
+.ep-get  { color: var(--green);  font-weight: 700; font-size: 9px; }
+
+/* ── FAN SVG ───────────────────────────────────────── */
+.fan { width: 100%; height: 52px; display: block; }
+
+/* ── PIPELINES ─────────────────────────────────────── */
+.pipes {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 10px;
+}
+.pipe {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow .2s;
+}
+.pipe:hover { box-shadow: 0 0 0 1px rgba(255,255,255,.07); }
+
+.ph {
+  padding: 11px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.ph-icon {
+  width: 28px; height: 28px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.ph-name {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
+.ph-sub {
+  font-size: 9.5px;
+  color: var(--muted);
+}
+
+.scanner  .ph { background: rgba(129,140,248,.07); }
+.scanner  .ph-icon { background: rgba(129,140,248,.15); color: var(--accent); }
+.scanner  .ph-name { color: var(--accent); }
+
+.guardrail .ph { background: rgba(245,158,11,.07); }
+.guardrail .ph-icon { background: rgba(245,158,11,.15); color: var(--amber); }
+.guardrail .ph-name { color: var(--amber); }
+
+.adversarial .ph { background: rgba(244,63,94,.07); }
+.adversarial .ph-icon { background: rgba(244,63,94,.15); color: var(--red); }
+.adversarial .ph-name { color: var(--red); }
+
+.mods {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+.mod {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-left: 3px solid;
+  border-radius: 0 3px 3px 0;
+  padding: 7px 9px;
+  transition: background .15s;
+}
+.mod:hover { background: #1a2540; }
+.scanner    .mod { border-left-color: var(--accent); }
+.guardrail  .mod { border-left-color: var(--amber);  }
+.adversarial .mod { border-left-color: var(--red);   }
+
+.mod.ext-mod {
+  border-style: dashed;
+  border-left-style: solid;
+}
+.mod-name {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mod-desc {
+  font-size: 9.5px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.live-badge {
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--green);
+  background: rgba(16,185,129,.12);
+  border: 1px solid rgba(16,185,129,.3);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+.pipe-note {
+  margin: 0 10px 10px;
+  font-size: 9px;
+  color: var(--muted);
+  font-family: var(--mono);
+  padding: 6px 8px;
+  background: rgba(0,0,0,.2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  line-height: 1.5;
+}
+.ext-row {
+  margin: 0 10px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(16,185,129,.05);
+  border: 1px dashed rgba(16,185,129,.25);
+  border-radius: 3px;
+}
+.ext-icon { font-size: 10px; }
+.ext-text {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--green);
+  line-height: 1.4;
+}
+
+/* ── MERGE SVG ─────────────────────────────────────── */
+.merge { width: 100%; height: 52px; display: block; }
+
+/* ── OUTPUTS ───────────────────────────────────────── */
+.outputs {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 8px;
+}
+.out {
+  background: var(--surface);
+  border: 1px solid rgba(16,185,129,.2);
+  border-top: 2px solid var(--green);
+  border-radius: 4px;
+  padding: 12px 13px;
+  text-align: center;
+  transition: box-shadow .2s;
+}
+.out:hover { box-shadow: 0 0 0 1px rgba(16,185,129,.15); }
+.out.dash {
+  border-top-color: var(--accent);
+  border-color: rgba(129,140,248,.2);
+}
+.out.dash:hover { box-shadow: 0 0 0 1px rgba(129,140,248,.15); }
+.out-name {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--green);
+  margin-bottom: 5px;
+}
+.out.dash .out-name { color: var(--accent); }
+.out-schema {
+  font-size: 9.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* ── LEGEND ────────────────────────────────────────── */
+.legend {
+  display: flex;
+  gap: 22px;
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+  align-items: center;
+}
+.leg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--muted);
+}
+.leg-swatch {
+  width: 12px; height: 3px;
+  border-radius: 2px;
+}
+.leg-swatch.dashed {
+  background: repeating-linear-gradient(90deg, var(--green) 0, var(--green) 4px, transparent 4px, transparent 7px);
+}
+.leg-sep {
+  color: var(--border);
+  font-size: 16px;
+  line-height: 1;
+}
+</style>
+
+<div class="wrap">
+  <div class="beam" aria-hidden="true"></div>
+
+  <!-- HEADER -->
+  <header class="hdr">
+    <div>
+      <div class="logo">RAMPART</div>
+      <div class="logo-sub">Adversarial ML Security Scanner &mdash; System Architecture</div>
+    </div>
+    <div class="hdr-stats">
+      <div class="stat">
+        <div class="stat-n" style="color:var(--accent)">5</div>
+        <div class="stat-l">Scanners</div>
+      </div>
+      <div class="stat">
+        <div class="stat-n" style="color:var(--amber)">3</div>
+        <div class="stat-l">Guardrail layers</div>
+      </div>
+      <div class="stat">
+        <div class="stat-n" style="color:var(--red)">3</div>
+        <div class="stat-l">Attack types</div>
+      </div>
+      <div class="stat">
+        <div class="stat-n" style="color:var(--green)"><span class="live-dot"></span>6</div>
+        <div class="stat-l">REST endpoints</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- INPUT LAYER -->
+  <div class="lbl">Input sources</div>
+  <div class="inputs">
+    <div class="inp">
+      <div class="inp-name">File Upload</div>
+      <div class="inp-sub">.py &middot; .pkl &middot; .pt<br>.ipynb &middot; .yaml</div>
+    </div>
+    <div class="inp">
+      <div class="inp-name">Inline Text</div>
+      <div class="inp-sub">code &middot; model cards<br>training data</div>
+    </div>
+    <div class="inp">
+      <div class="inp-name">Model Weights</div>
+      <div class="inp-sub">.pt &middot; .pth &middot; .bin<br>.onnx &middot; .h5</div>
+    </div>
+    <div class="inp">
+      <div class="inp-name">Dependency Files</div>
+      <div class="inp-sub">requirements.txt<br>package.json</div>
+    </div>
+    <div class="inp">
+      <div class="inp-name">LLM Prompt / Output</div>
+      <div class="inp-sub">prompts &middot; completions<br>RAG chunks</div>
+    </div>
+  </div>
+
+  <!-- ARROW -->
+  <div class="arr"><div class="arr-line"></div></div>
+
+  <!-- API LAYER -->
+  <div class="api">
+    <div class="api-hdr">
+      <div class="api-title">FASTAPI REST API</div>
+      <div class="api-badge">uvicorn &middot; port 8000 &middot; async</div>
+    </div>
+    <div class="endpoints">
+      <div class="ep"><span class="ep-post">POST</span>/scan/text</div>
+      <div class="ep"><span class="ep-post">POST</span>/scan/file</div>
+      <div class="ep"><span class="ep-post">POST</span>/guardrail/check</div>
+      <div class="ep"><span class="ep-post">POST</span>/adversarial/attack</div>
+      <div class="ep"><span class="ep-post">POST</span>/adversarial/evaluate</div>
+      <div class="ep"><span class="ep-get">GET&nbsp;</span>/health</div>
+    </div>
+  </div>
+
+  <!-- FAN CONNECTOR -->
+  <svg class="fan" viewBox="0 0 1000 52" preserveAspectRatio="none" aria-hidden="true">
+    <line x1="500" y1="0"  x2="500" y2="26" stroke="rgba(129,140,248,.35)" stroke-width="1.5"/>
+    <line x1="170" y1="26" x2="830" y2="26" stroke="rgba(129,140,248,.35)" stroke-width="1.5"/>
+    <line x1="170" y1="26" x2="170" y2="52" stroke="rgba(129,140,248,.35)" stroke-width="1.5"/>
+    <line x1="500" y1="26" x2="500" y2="52" stroke="rgba(129,140,248,.35)" stroke-width="1.5"/>
+    <line x1="830" y1="26" x2="830" y2="52" stroke="rgba(129,140,248,.35)" stroke-width="1.5"/>
+    <polygon points="165,47 170,54 175,47" fill="rgba(129,140,248,.45)"/>
+    <polygon points="495,47 500,54 505,47" fill="rgba(129,140,248,.45)"/>
+    <polygon points="825,47 830,54 835,47" fill="rgba(129,140,248,.45)"/>
+  </svg>
+
+  <!-- THREE PIPELINES -->
+  <div class="pipes">
+
+    <!-- SCANNER -->
+    <div class="pipe scanner">
+      <div class="ph">
+        <div class="ph-icon">&#x25A6;</div>
+        <div>
+          <div class="ph-name">SCANNER PIPELINE</div>
+          <div class="ph-sub">5 modules run in parallel via asyncio</div>
+        </div>
+      </div>
+      <div class="mods">
+        <div class="mod">
+          <div class="mod-name">Secrets</div>
+          <div class="mod-desc">12 known-format patterns &plus; Shannon entropy scoring (&ge;4.5 bits)</div>
+        </div>
+        <div class="mod">
+          <div class="mod-name">PII</div>
+          <div class="mod-desc">Presidio NLP entity recognition &plus; 11 structural regex patterns</div>
+        </div>
+        <div class="mod">
+          <div class="mod-name">Backdoor</div>
+          <div class="mod-desc">Pickle opcodes &middot; byte signatures &middot; PyTorch weight norm anomaly (3.5&sigma;)</div>
+        </div>
+        <div class="mod">
+          <div class="mod-name">Code Injection</div>
+          <div class="mod-desc">13 dangerous call patterns &plus; LLM jailbreak detection in training data</div>
+        </div>
+        <div class="mod ext-mod">
+          <div class="mod-name">Dependency CVEs <span class="live-badge">LIVE</span></div>
+          <div class="mod-desc">Queries OSV.dev per package in parallel &middot; parses CVSS severity</div>
+        </div>
+      </div>
+      <div class="ext-row">
+        <span class="ext-icon">&#x21D7;</span>
+        <div class="ext-text">OSV.dev API (Google) &middot; real-time CVE data &middot; no auth required</div>
+      </div>
+    </div>
+
+    <!-- GUARDRAIL -->
+    <div class="pipe guardrail">
+      <div class="ph">
+        <div class="ph-icon">&#x25A6;</div>
+        <div>
+          <div class="ph-name">GUARDRAIL PIPELINE</div>
+          <div class="ph-sub">input &rarr; check &rarr; output, async</div>
+        </div>
+      </div>
+      <div class="mods">
+        <div class="mod">
+          <div class="mod-name">Input Guard</div>
+          <div class="mod-desc">Banned term blocklist &middot; toxicity patterns &middot; PII detection &middot; absolute blocks</div>
+        </div>
+        <div class="mod">
+          <div class="mod-name">Injection Detector</div>
+          <div class="mod-desc">30&plus; patterns &middot; severity weights (critical=40, high=20) &middot; risk score 0&ndash;100</div>
+        </div>
+        <div class="mod">
+          <div class="mod-name">Output Guard</div>
+          <div class="mod-desc">Secret leakage detection &middot; harmful instruction filter &middot; output PII scan</div>
+        </div>
+      </div>
+      <div class="pipe-note">
+        Returns: passed &middot; blocked_reason &middot; checks[] &middot; sanitized_text &middot; risk_score
+      </div>
+    </div>
+
+    <!-- ADVERSARIAL -->
+    <div class="pipe adversarial">
+      <div class="ph">
+        <div class="ph-icon">&#x25A6;</div>
+        <div>
+          <div class="ph-name">ADVERSARIAL ENGINE</div>
+          <div class="ph-sub">real autograd &middot; trained MLP &middot; cached per dim</div>
+        </div>
+      </div>
+      <div class="mods">
+        <div class="mod">
+          <div class="mod-name">FGSM</div>
+          <div class="mod-desc">Single-step L&infin; &middot; real autograd gradient &middot; softmax confidence delta</div>
+        </div>
+        <div class="mod">
+          <div class="mod-name">PGD</div>
+          <div class="mod-desc">Iterative &middot; random start &middot; &epsilon;-ball projection &middot; Madry et al.</div>
+        </div>
+        <div class="mod">
+          <div class="mod-name">TextFooler</div>
+          <div class="mod-desc">Word substitution &plus; Unicode Cyrillic homoglyph injection</div>
+        </div>
+        <div class="mod">
+          <div class="mod-name">Robustness Evaluator</div>
+          <div class="mod-desc">N-sample report &middot; fool rate &middot; confidence drop &middot; recommendations</div>
+        </div>
+      </div>
+      <div class="pipe-note">
+        MLP: input &rarr; 64 &rarr; 32 &rarr; 2 &middot; trained on synthetic data &middot; cached per input dim
+      </div>
+    </div>
+
+  </div><!-- /pipes -->
+
+  <!-- MERGE CONNECTOR -->
+  <svg class="merge" viewBox="0 0 1000 52" preserveAspectRatio="none" aria-hidden="true">
+    <line x1="170" y1="0"  x2="170" y2="26" stroke="rgba(16,185,129,.35)" stroke-width="1.5"/>
+    <line x1="500" y1="0"  x2="500" y2="26" stroke="rgba(16,185,129,.35)" stroke-width="1.5"/>
+    <line x1="830" y1="0"  x2="830" y2="26" stroke="rgba(16,185,129,.35)" stroke-width="1.5"/>
+    <line x1="170" y1="26" x2="830" y2="26" stroke="rgba(16,185,129,.35)" stroke-width="1.5"/>
+    <line x1="500" y1="26" x2="500" y2="52" stroke="rgba(16,185,129,.35)" stroke-width="1.5"/>
+    <polygon points="495,47 500,54 505,47" fill="rgba(16,185,129,.45)"/>
+  </svg>
+
+  <!-- OUTPUT LAYER -->
+  <div class="lbl">Output layer</div>
+  <div class="outputs">
+    <div class="out">
+      <div class="out-name">ScanResult</div>
+      <div class="out-schema">filename &middot; risk_score &middot; critical &middot; high &middot; medium &middot; low &middot; findings[]</div>
+    </div>
+    <div class="out">
+      <div class="out-name">GuardrailResult</div>
+      <div class="out-schema">passed &middot; blocked_reason &middot; checks[] &middot; sanitized_text &middot; risk_score</div>
+    </div>
+    <div class="out">
+      <div class="out-name">AdversarialResult</div>
+      <div class="out-schema">success &middot; confidence_drop &middot; perturbation_norm &middot; fool_rate</div>
+    </div>
+    <div class="out dash">
+      <div class="out-name">Web Dashboard</div>
+      <div class="out-schema">localhost:8000 &middot; Scanner &middot; Guardrails &middot; Adversarial tabs</div>
+    </div>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <div class="leg"><div class="leg-swatch" style="background:var(--accent)"></div>Scanner pipeline</div>
+    <div class="leg-sep">&middot;</div>
+    <div class="leg"><div class="leg-swatch" style="background:var(--amber)"></div>Guardrail pipeline</div>
+    <div class="leg-sep">&middot;</div>
+    <div class="leg"><div class="leg-swatch" style="background:var(--red)"></div>Adversarial engine</div>
+    <div class="leg-sep">&middot;</div>
+    <div class="leg"><div class="leg-swatch" style="background:var(--green)"></div>Outputs</div>
+    <div class="leg-sep">&middot;</div>
+    <div class="leg"><div class="leg-swatch dashed"></div>External API</div>
+  </div>
+
+</div>
