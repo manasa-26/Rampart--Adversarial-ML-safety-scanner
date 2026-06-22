@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env
+
+# Environment variables
+.env
+.env.local
+*.env
+
+# HuggingFace cache
+.cache/
+~/.cache/huggingface/
+
+# PyTorch / model files (too large for git)
+*.pt
+*.pth
+*.bin
+*.onnx
+*.h5
+
+# Test fixtures with sensitive content — keep structure, not data
+test_fixtures/requirements.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

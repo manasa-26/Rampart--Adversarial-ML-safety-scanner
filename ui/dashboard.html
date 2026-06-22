@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Adversarial ML Safety Guardrail</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent2: #f78166;
+    --accent3: #3fb950;
+    --warn: #e3b341;
+    --text: #c9d1d9;
+    --muted: #6e7681;
+    --critical: #f85149;
+    --high: #f78166;
+    --medium: #e3b341;
+    --low: #58a6ff;
+    --info: #6e7681;
+    --font: 'Segoe UI', system-ui, sans-serif;
+    --mono: 'Cascadia Code', 'Fira Code', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── Layout ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 56px;
+  }
+  header .logo {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.3px;
+  }
+  header .logo span { color: var(--accent2); }
+  header .badge {
+    background: #1f3045;
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+    border: 1px solid var(--accent);
+  }
+  header .status {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent3); }
+
+  nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    padding: 0 24px;
+    gap: 0;
+  }
+  nav button {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 14px;
+    padding: 12px 20px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  nav button:hover { color: var(--text); }
+  nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 28px 24px; }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card h3 .icon { font-size: 18px; }
+
+  /* ── Form elements ── */
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
+  textarea, input[type=text], input[type=number], select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 10px 12px;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  textarea:focus, input:focus, select:focus { border-color: var(--accent); }
+  textarea { min-height: 120px; }
+
+  .row { display: flex; gap: 16px; margin-bottom: 14px; }
+  .row .field { flex: 1; }
+  .field { margin-bottom: 14px; }
+
+  .checkbox-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .checkbox-row label {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--text); font-size: 13px; cursor: pointer; margin: 0;
+  }
+  input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; }
+
+  .btn {
+    background: var(--accent);
+    border: none;
+    border-radius: 6px;
+    color: #0d1117;
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 22px;
+    transition: opacity 0.15s;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-danger { background: var(--critical); }
+  .btn-warn { background: var(--warn); color: #000; }
+
+  /* ── Result panels ── */
+  .result {
+    margin-top: 20px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    display: none;
+  }
+  .result.show { display: block; }
+
+  .score-bar-wrap { display: flex; align-items: center; gap: 12px; margin: 12px 0; }
+  .score-bar { flex: 1; height: 8px; background: #1c2128; border-radius: 4px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+  .score-label { font-size: 22px; font-weight: 700; min-width: 44px; text-align: right; }
+
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .tag-critical { background: #3d1014; color: var(--critical); border: 1px solid #5a1b20; }
+  .tag-high { background: #2d1b14; color: var(--high); border: 1px solid #4a2a1a; }
+  .tag-medium { background: #2d2014; color: var(--medium); border: 1px solid #4a3a1a; }
+  .tag-low { background: #0f1f33; color: var(--low); border: 1px solid #1a3050; }
+  .tag-info { background: #1c2128; color: var(--muted); border: 1px solid var(--border); }
+  .tag-pass { background: #0d2115; color: var(--accent3); border: 1px solid #1a3d24; }
+  .tag-fail { background: #2d1014; color: var(--critical); border: 1px solid #4a1820; }
+  .tag-blocked { background: #3d1014; color: var(--critical); border: 1px solid #5a1b20; }
+  .tag-allowed { background: #0d2115; color: var(--accent3); border: 1px solid #1a3d24; }
+
+  .finding {
+    border-left: 3px solid var(--border);
+    margin: 10px 0;
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    background: #161b22;
+  }
+  .finding.critical { border-color: var(--critical); }
+  .finding.high { border-color: var(--high); }
+  .finding.medium { border-color: var(--medium); }
+  .finding.low { border-color: var(--low); }
+  .finding-title { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+  .finding-meta { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .finding-desc { font-size: 13px; color: var(--text); margin-bottom: 6px; }
+  .finding-rec { font-size: 12px; color: var(--accent); }
+  .evidence {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: var(--bg);
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin: 4px 0;
+    word-break: break-all;
+    color: var(--warn);
+  }
+
+  .stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
+  .stat-chip {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 14px;
+    text-align: center;
+  }
+  .stat-chip .n { font-size: 22px; font-weight: 700; }
+  .stat-chip .l { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .checks-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  .checks-table th { text-align: left; font-size: 11px; color: var(--muted); padding: 6px 10px; border-bottom: 1px solid var(--border); }
+  .checks-table td { padding: 8px 10px; border-bottom: 1px solid #1c2128; font-size: 13px; vertical-align: top; }
+
+  pre.code {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: var(--text);
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 24px; }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 16px 0 8px;
+  }
+
+  .rec-list { padding-left: 18px; }
+  .rec-list li { color: var(--accent); font-size: 13px; margin: 4px 0; }
+
+  /* Upload drop zone */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .drop-zone:hover, .drop-zone.drag { border-color: var(--accent); background: #0f1923; }
+  .drop-zone .icon { font-size: 32px; margin-bottom: 8px; }
+  .drop-zone p { color: var(--muted); font-size: 13px; }
+  .drop-zone input { display: none; }
+  .file-name { margin-top: 10px; font-family: var(--mono); font-size: 12px; color: var(--accent3); }
+
+  .robustness-bar {
+    height: 20px;
+    background: #1c2128;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 10px 0;
+  }
+  .robustness-fill {
+    height: 100%;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    padding-left: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #000;
+    transition: width 0.5s ease;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Adversarial ML <span>Safety</span></div>
+  <div class="badge">v1.0.0</div>
+  <div class="status">
+    <div class="dot" id="health-dot"></div>
+    <span id="health-text">Connecting…</span>
+  </div>
+</header>
+
+<nav>
+  <button class="active" onclick="switchTab('scanner', this)">&#x1F50D; Scanner</button>
+  <button onclick="switchTab('guardrail', this)">&#x1F6E1; Guardrails</button>
+  <button onclick="switchTab('adversarial', this)">&#x26A1; Adversarial</button>
+</nav>
+
+<main>
+
+<!-- ═══════════════════════════════════════════════ SCANNER ══ -->
+<div id="tab-scanner" class="tab-panel active">
+  <div class="card">
+    <h3><span class="icon">&#x1F4C4;</span> Scan Text</h3>
+    <div class="field">
+      <label>Text to scan</label>
+      <textarea id="scan-text" placeholder="Paste code, model card, training data, or any text…"></textarea>
+    </div>
+    <div class="field">
+      <label>Label (optional)</label>
+      <input type="text" id="scan-label" value="inline_text" />
+    </div>
+    <button class="btn" onclick="runTextScan()">Run Scan</button>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon">&#x1F4E4;</span> Scan File</h3>
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <div class="icon">&#x1F4C1;</div>
+      <p>Click or drag a file here<br><small>.py · .pkl · .pt · .ipynb · .yaml · requirements.txt · package.json</small></p>
+      <input type="file" id="file-input" onchange="handleFileSelect(event)" />
+      <div class="file-name" id="file-name"></div>
+    </div>
+    <button class="btn" id="scan-file-btn" style="margin-top:14px" onclick="runFileScan()">Scan File</button>
+  </div>
+
+  <div id="scan-result" class="result"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ GUARDRAIL ══ -->
+<div id="tab-guardrail" class="tab-panel">
+  <div class="card">
+    <h3><span class="icon">&#x1F6E1;</span> Guardrail Check</h3>
+    <div class="field">
+      <label>Input text</label>
+      <textarea id="guard-text" placeholder="Enter user message, LLM prompt, or model output to check…"></textarea>
+    </div>
+    <div class="field">
+      <label>Context (optional — e.g. system prompt excerpt)</label>
+      <textarea id="guard-context" style="min-height:60px" placeholder="Optional context…"></textarea>
+    </div>
+    <div class="checkbox-row">
+      <label><input type="checkbox" id="g-pii" checked> Check PII</label>
+      <label><input type="checkbox" id="g-injection" checked> Check Injection</label>
+      <label><input type="checkbox" id="g-toxicity" checked> Check Toxicity</label>
+      <label><input type="checkbox" id="g-strict"> Strict Mode</label>
+    </div>
+    <button class="btn" onclick="runGuardrail()">Check Text</button>
+  </div>
+
+  <div id="guard-result" class="result"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ ADVERSARIAL ══ -->
+<div id="tab-adversarial" class="tab-panel">
+  <div class="card">
+    <h3><span class="icon">&#x26A1;</span> Adversarial Attack</h3>
+    <div class="row">
+      <div class="field">
+        <label>Attack Type</label>
+        <select id="atk-type" onchange="toggleAttackFields()">
+          <option value="FGSM">FGSM — Fast Gradient Sign Method</option>
+          <option value="PGD">PGD — Projected Gradient Descent</option>
+          <option value="TEXTFOOLER">TextFooler — Word Substitution + Homoglyphs</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Epsilon (attack strength)</label>
+        <input type="number" id="atk-eps" value="0.1" min="0.001" max="1.0" step="0.01" />
+      </div>
+      <div class="field" id="pgd-steps-wrap">
+        <label>PGD Steps</label>
+        <input type="number" id="atk-steps" value="40" min="1" max="200" />
+      </div>
+    </div>
+
+    <div id="array-fields">
+      <div class="field">
+        <label>Input Array (comma-separated floats in [0,1])</label>
+        <input type="text" id="atk-array" value="0.1, 0.5, 0.9, 0.3, 0.7, 0.2, 0.8, 0.4, 0.6, 0.05" />
+      </div>
+      <div class="field">
+        <label>Labels (comma-separated ints, same length — leave blank for auto)</label>
+        <input type="text" id="atk-labels" placeholder="0,1,1,0,1,0,1,0,1,0" />
+      </div>
+    </div>
+
+    <div id="text-fields" style="display:none">
+      <div class="field">
+        <label>Input Text (for TextFooler)</label>
+        <textarea id="atk-text" placeholder="Enter text to perturb…">The model performs well on all standard benchmarks and is robust to distribution shift.</textarea>
+      </div>
+    </div>
+
+    <div class="row" style="align-items:flex-end; gap:12px;">
+      <button class="btn" onclick="runAttack()">Run Attack</button>
+      <button class="btn btn-warn" onclick="runEvaluate()">Full Robustness Eval (10 samples)</button>
+    </div>
+  </div>
+
+  <div id="atk-result" class="result"></div>
+</div>
+
+</main>
+
+<script>
+const API = '';  // same origin
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── Health check ──────────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch(API + '/health');
+    if (r.ok) {
+      document.getElementById('health-dot').style.background = 'var(--accent3)';
+      document.getElementById('health-text').textContent = 'API online';
+    } else throw new Error();
+  } catch {
+    document.getElementById('health-dot').style.background = 'var(--critical)';
+    document.getElementById('health-text').textContent = 'API offline — start server on :8000';
+  }
+}
+checkHealth();
+setInterval(checkHealth, 30000);
+
+// ── Risk color ─────────────────────────────────────────────────────────────
+function riskColor(score) {
+  if (score >= 60) return 'var(--critical)';
+  if (score >= 35) return 'var(--high)';
+  if (score >= 15) return 'var(--medium)';
+  return 'var(--accent3)';
+}
+
+function severityTag(sev) {
+  return `<span class="tag tag-${sev.toLowerCase()}">${sev}</span>`;
+}
+
+// ── Loading helper ─────────────────────────────────────────────────────────
+function setLoading(el, show) {
+  if (show) {
+    el.innerHTML = '<div style="padding:20px;text-align:center"><div class="spinner"></div> Running…</div>';
+    el.classList.add('show');
+  }
+}
+
+// ── Scanner ────────────────────────────────────────────────────────────────
+async function runTextScan() {
+  const text = document.getElementById('scan-text').value.trim();
+  if (!text) return alert('Enter some text to scan.');
+  const label = document.getElementById('scan-label').value || 'inline_text';
+  const el = document.getElementById('scan-result');
+  setLoading(el, true);
+  const params = new URLSearchParams({ text, label });
+  const r = await fetch(API + '/scan/text?' + params, { method: 'POST' });
+  const data = await r.json();
+  el.innerHTML = renderScanResult(data);
+}
+
+let selectedFile = null;
+function handleFileSelect(evt) {
+  selectedFile = evt.target.files[0];
+  document.getElementById('file-name').textContent = selectedFile ? selectedFile.name : '';
+}
+
+async function runFileScan() {
+  if (!selectedFile) return alert('Select a file first.');
+  const el = document.getElementById('scan-result');
+  setLoading(el, true);
+  const fd = new FormData();
+  fd.append('file', selectedFile);
+  const r = await fetch(API + '/scan/file', { method: 'POST', body: fd });
+  const data = await r.json();
+  el.innerHTML = renderScanResult(data);
+}
+
+function renderScanResult(d) {
+  const pass = d.passed;
+  const color = riskColor(d.risk_score);
+  let html = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <span class="tag ${pass ? 'tag-pass' : 'tag-fail'}">${pass ? '✓ PASSED' : '✗ FAILED'}</span>
+      <strong style="font-size:15px">${d.filename}</strong>
+    </div>
+    <div class="score-bar-wrap">
+      <span style="font-size:12px;color:var(--muted);min-width:70px">Risk Score</span>
+      <div class="score-bar"><div class="score-fill" style="width:${d.risk_score}%;background:${color}"></div></div>
+      <span class="score-label" style="color:${color}">${d.risk_score}</span>
+    </div>
+    <div class="stats-row">
+      ${stat(d.critical, 'Critical', 'var(--critical)')}
+      ${stat(d.high, 'High', 'var(--high)')}
+      ${stat(d.medium, 'Medium', 'var(--medium)')}
+      ${stat(d.low, 'Low', 'var(--low)')}
+      ${stat(d.info, 'Info', 'var(--muted)')}
+    </div>`;
+
+  if (!d.findings || d.findings.length === 0) {
+    html += '<div class="empty">No findings — clean scan.</div>';
+  } else {
+    html += '<div class="section-title">Findings</div>';
+    for (const f of d.findings) {
+      html += `
+        <div class="finding ${f.severity.toLowerCase()}">
+          <div class="finding-title">${severityTag(f.severity)} ${f.title}</div>
+          <div class="finding-meta">Scanner: <strong>${f.scanner}</strong>${f.location ? ' · ' + f.location : ''}</div>
+          <div class="finding-desc">${f.description}</div>
+          ${f.evidence ? `<div class="evidence">${escHtml(f.evidence)}</div>` : ''}
+          ${f.recommendation ? `<div class="finding-rec">&#x1F4A1; ${f.recommendation}</div>` : ''}
+        </div>`;
+    }
+  }
+  return html;
+}
+
+function stat(n, label, color) {
+  return `<div class="stat-chip"><div class="n" style="color:${color}">${n}</div><div class="l">${label}</div></div>`;
+}
+
+// ── Guardrail ──────────────────────────────────────────────────────────────
+async function runGuardrail() {
+  const text = document.getElementById('guard-text').value.trim();
+  if (!text) return alert('Enter text to check.');
+  const el = document.getElementById('guard-result');
+  setLoading(el, true);
+
+  const body = {
+    text,
+    context: document.getElementById('guard-context').value || null,
+    check_pii: document.getElementById('g-pii').checked,
+    check_injection: document.getElementById('g-injection').checked,
+    check_toxicity: document.getElementById('g-toxicity').checked,
+    strict_mode: document.getElementById('g-strict').checked,
+  };
+
+  const r = await fetch(API + '/guardrail/check', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const d = await r.json();
+  el.innerHTML = renderGuardrailResult(d);
+  el.classList.add('show');
+}
+
+function renderGuardrailResult(d) {
+  const blocked = !d.passed;
+  const color = riskColor(d.risk_score);
+  let html = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <span class="tag ${blocked ? 'tag-blocked' : 'tag-allowed'}">${blocked ? '🚫 BLOCKED' : '✓ ALLOWED'}</span>
+      <span style="color:var(--muted);font-size:13px">Risk: <strong style="color:${color}">${d.risk_score}/100</strong></span>
+    </div>`;
+
+  if (blocked && d.blocked_reason) {
+    html += `<div class="finding critical"><div class="finding-title">Block reason</div><div class="finding-desc">${d.blocked_reason}</div></div>`;
+  }
+
+  if (d.sanitized_text && d.sanitized_text !== d.text) {
+    html += `<div class="section-title">Sanitized Output</div><pre class="code">${escHtml(d.sanitized_text)}</pre>`;
+  }
+
+  html += '<div class="section-title">Check Results</div>';
+  html += `<table class="checks-table">
+    <thead><tr><th>Check</th><th>Passed</th><th>Severity</th><th>Confidence</th><th>Reason</th></tr></thead><tbody>`;
+  for (const c of (d.checks || [])) {
+    html += `<tr>
+      <td>${c.check_name}</td>
+      <td>${c.passed ? '✓' : '✗'}</td>
+      <td>${c.severity ? severityTag(c.severity) : '—'}</td>
+      <td>${c.confidence != null ? (c.confidence * 100).toFixed(0) + '%' : '—'}</td>
+      <td style="color:var(--muted)">${c.reason || '—'}</td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  return html;
+}
+
+// ── Adversarial ────────────────────────────────────────────────────────────
+function toggleAttackFields() {
+  const type = document.getElementById('atk-type').value;
+  document.getElementById('array-fields').style.display = type === 'TEXTFOOLER' ? 'none' : 'block';
+  document.getElementById('text-fields').style.display = type === 'TEXTFOOLER' ? 'block' : 'none';
+  document.getElementById('pgd-steps-wrap').style.display = type === 'PGD' ? 'block' : 'none';
+}
+
+function buildAttackRequest() {
+  const type = document.getElementById('atk-type').value;
+  const eps = parseFloat(document.getElementById('atk-eps').value);
+  const body = { attack_type: type, epsilon: eps };
+  if (type === 'TEXTFOOLER') {
+    body.text = document.getElementById('atk-text').value;
+  } else {
+    body.input_array = document.getElementById('atk-array').value.split(',').map(s => parseFloat(s.trim()));
+    const labelStr = document.getElementById('atk-labels').value.trim();
+    if (labelStr) body.labels = labelStr.split(',').map(s => parseInt(s.trim()));
+    if (type === 'PGD') body.pgd_steps = parseInt(document.getElementById('atk-steps').value);
+  }
+  return body;
+}
+
+async function runAttack() {
+  const el = document.getElementById('atk-result');
+  setLoading(el, true);
+  const r = await fetch(API + '/adversarial/attack', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(buildAttackRequest()),
+  });
+  const d = await r.json();
+  el.innerHTML = renderAttackResult(d);
+  el.classList.add('show');
+}
+
+async function runEvaluate() {
+  const el = document.getElementById('atk-result');
+  setLoading(el, true);
+  const r = await fetch(API + '/adversarial/evaluate?n_samples=10', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(buildAttackRequest()),
+  });
+  const d = await r.json();
+  el.innerHTML = renderRobustnessReport(d);
+  el.classList.add('show');
+}
+
+function renderAttackResult(d) {
+  const color = d.success ? 'var(--critical)' : 'var(--accent3)';
+  const isText = d.attack_type === 'TEXTFOOLER';
+  let html = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <span class="tag" style="background:${d.success ? '#3d1014' : '#0d2115'};color:${color};border:1px solid ${color}">
+        ${d.success ? '⚡ ATTACK SUCCEEDED' : '✓ DEFENDED'}
+      </span>
+      <span style="color:var(--muted)">${d.attack_type} · ε=${d.epsilon}</span>
+    </div>
+    <div class="stats-row">
+      ${stat((d.confidence_drop * 100).toFixed(1) + '%', 'Confidence Drop', color)}
+      ${stat(d.perturbation_norm.toFixed(4), 'L∞ Norm', 'var(--muted)')}
+    </div>`;
+
+  if (isText) {
+    const orig = (d.original_input || []).join('');
+    const adv = (d.adversarial_input || []).join('');
+    html += `<div class="section-title">Original Text</div><pre class="code">${escHtml(orig)}</pre>`;
+    html += `<div class="section-title">Adversarial Text</div><pre class="code" style="color:var(--warn)">${escHtml(adv)}</pre>`;
+  } else {
+    html += `<div class="section-title">Original Input (first 20)</div>
+      <pre class="code">[${(d.original_input || []).slice(0,20).map(v => v.toFixed(3)).join(', ')}…]</pre>`;
+    html += `<div class="section-title">Adversarial Input (first 20)</div>
+      <pre class="code" style="color:var(--warn)">[${(d.adversarial_input || []).slice(0,20).map(v => v.toFixed(3)).join(', ')}…]</pre>`;
+  }
+  return html;
+}
+
+function renderRobustnessReport(d) {
+  const score = d.robustness_score;
+  const color = score >= 70 ? 'var(--accent3)' : score >= 40 ? 'var(--medium)' : 'var(--critical)';
+  let html = `
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Robustness Score (${d.attack_type} · ε=${d.epsilon})</div>
+      <div class="robustness-bar">
+        <div class="robustness-fill" style="width:${score}%;background:${color}">${score}/100</div>
+      </div>
+    </div>
+    <div class="stats-row">
+      ${stat(d.samples_tested, 'Tested', 'var(--muted)')}
+      ${stat(d.samples_fooled, 'Fooled', d.samples_fooled > 0 ? 'var(--critical)' : 'var(--accent3)')}
+      ${stat((d.fool_rate * 100).toFixed(1) + '%', 'Fool Rate', d.fool_rate > 0.3 ? 'var(--critical)' : 'var(--accent3)')}
+    </div>`;
+
+  if (d.recommendations && d.recommendations.length) {
+    html += '<div class="section-title">Recommendations</div><ul class="rec-list">';
+    for (const r of d.recommendations) html += `<li>${r}</li>`;
+    html += '</ul>';
+  }
+  return html;
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ── Drop zone drag events ──────────────────────────────────────────────────
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => {
+  e.preventDefault();
+  dz.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    selectedFile = file;
+    document.getElementById('file-name').textContent = file.name;
+    document.getElementById('file-input').files = e.dataTransfer.files;
+  }
+});
+
+// Init
+toggleAttackFields();
+</script>
+</body>
+</html>
