@@ -131,3 +131,11 @@ For `.pt` / `.pth` PyTorch checkpoints, Rampart loads the model with `weights_on
 ## Disclaimer
 
 All test fixtures are synthetic. No real credentials or PII are included. This tool is intended for authorized security auditing of ML pipelines.
+
+
+
+<img width="1420" height="866" alt="image" src="https://github.com/user-attachments/assets/7f9f9a5e-3a98-4082-9d5a-655fe6fb6203" />
+
+<img width="1493" height="851" alt="image" src="https://github.com/user-attachments/assets/b36e2215-8d8a-489c-98f4-66fded8717fc" />
+
+
